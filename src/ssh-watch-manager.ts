@@ -4,7 +4,7 @@ import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PROTOCOL_PREFIX, STDERR_TAIL_BYTES, DEFAULT_SSH_KEEPALIVE_ARGS } from "./constants.js";
+import { PROTOCOL_PREFIX, STDERR_TAIL_BYTES, DEFAULT_SSH_KEEPALIVE_ARGS, DEFAULT_PROBE_INTERVAL_SECONDS, PROBE_CONNECT_TIMEOUT_SECONDS, PROBE_TIMEOUT_SECONDS, PROBE_FAILURE_THRESHOLD } from "./constants.js";
 import { consumeLines, parseProtocolLine } from "./protocol.js";
 import type {
   ActiveWatch,
@@ -70,6 +70,10 @@ export class SshWatchManager {
       ready: false,
       terminalHandled: false,
       intentionalClose: false,
+      stateFile: null,
+      probeTimer: undefined,
+      probeChild: undefined,
+      probeFailures: 0,
     };
     this.active.set(config.watch_id, active);
     this.ownership.set(config.watch_id, active);
@@ -85,6 +89,7 @@ export class SshWatchManager {
         settled = true;
         clearTimeout(timeout);
         active.intentionalClose = true;
+        this.stopProbes(active);
         child.kill();
         this.deleteIfCurrent(active);
         this.releaseOwnership(active);
@@ -130,11 +135,13 @@ export class SshWatchManager {
           if (event.event === "ready") {
             if (active.ready) continue;
             active.ready = true;
+            active.stateFile = event.state_file;
             readyEvent = event;
             if (!settled) {
               settled = true;
               clearTimeout(timeout);
               resolve(event);
+              this.scheduleProbe(active);
             }
             continue;
           }
@@ -157,6 +164,7 @@ export class SshWatchManager {
         if (askpassPath !== undefined) rmSync(askpassPath, { force: true });
         clearTimeout(timeout);
         this.deleteIfCurrent(active);
+        this.stopProbes(active);
         if (!settled && !active.ready) {
           const error = new Error(this.startupExitMessage(code, closeSignal, active.stderrTail));
           settled = true;
@@ -201,6 +209,7 @@ export class SshWatchManager {
     const active = this.active.get(watchId);
     if (!active) return false;
     active.intentionalClose = true;
+    this.stopProbes(active);
     active.child.kill();
     this.active.delete(watchId);
     this.releaseOwnership(active);
@@ -211,6 +220,7 @@ export class SshWatchManager {
   public closeAll(): void {
     for (const active of this.active.values()) {
       active.intentionalClose = true;
+      this.stopProbes(active);
       active.child.kill();
       this.releaseOwnership(active);
     }
@@ -239,6 +249,7 @@ export class SshWatchManager {
   private finishOnce(active: ActiveWatch, event: TerminalEvent): void {
     if (active.terminalHandled || active.intentionalClose) return;
     active.terminalHandled = true;
+    this.stopProbes(active);
     this.deleteIfCurrent(active);
     setImmediate(() => {
       if (this.ownership.get(active.config.watch_id) !== active) return;
@@ -246,6 +257,140 @@ export class SshWatchManager {
       this.onTerminal(active.config, event);
     });
     active.child.kill();
+  }
+
+  /** Schedules the next reachability probe, or does nothing when probes are disabled. */
+  private scheduleProbe(active: ActiveWatch): void {
+    if (active.terminalHandled || active.intentionalClose) return;
+    const intervalSeconds =
+      active.config.probe_interval_seconds ?? DEFAULT_PROBE_INTERVAL_SECONDS;
+    if (intervalSeconds <= 0) return;
+    active.probeTimer = setTimeout(() => this.runProbe(active), intervalSeconds * 1000);
+  }
+
+  /** Runs one reachability probe: a fresh SSH session must exit 0 before the host counts as reachable. */
+  private runProbe(active: ActiveWatch): void {
+    active.probeTimer = undefined;
+    if (
+      this.active.get(active.config.watch_id) !== active ||
+      active.terminalHandled ||
+      active.intentionalClose
+    )
+      return;
+    const askpassPath =
+      active.config.password === undefined ? undefined : createAskpassScript();
+    const env =
+      askpassPath === undefined
+        ? undefined
+        : {
+            ...process.env,
+            SSH_ASKPASS: askpassPath,
+            SSH_ASKPASS_REQUIRE: "force",
+            SSH_TARGET_PASSWORD: active.config.password,
+          };
+    // ConnectTimeout 放在用户 ssh_args 之后：OpenSSH 对重复 -o 选项第一个生效，
+    // 因此用户提供的 ConnectTimeout（在前）生效，未提供时使用探测默认值。
+    const args = [
+      ...active.config.ssh_args,
+      "-o",
+      `ConnectTimeout=${PROBE_CONNECT_TIMEOUT_SECONDS}`,
+      "--",
+      active.config.host,
+      "exit 0",
+    ];
+    let probe: ChildProcessWithoutNullStreams;
+    try {
+      probe = this.spawnProcess("ssh", args, {
+        stdio: ["ignore", "ignore", "pipe"],
+        ...(env === undefined ? {} : { env }),
+      }) as unknown as ChildProcessWithoutNullStreams;
+    } catch (error) {
+      if (askpassPath !== undefined) rmSync(askpassPath, { force: true });
+      this.recordProbeFailure(
+        active,
+        error instanceof Error ? error.message : String(error),
+      );
+      return;
+    }
+    active.probeChild = probe;
+    let stderrTail = Buffer.alloc(0);
+    let killedByTimeout = false;
+    const probeTimeout = setTimeout(() => {
+      killedByTimeout = true;
+      if (active.probeChild === probe) active.probeChild = undefined;
+      probe.kill();
+    }, PROBE_TIMEOUT_SECONDS * 1000);
+    probe.stderr.on("data", (chunk: Buffer) => {
+      stderrTail = Buffer.concat([stderrTail, chunk]).subarray(-STDERR_TAIL_BYTES);
+    });
+    probe.on("error", (error) => {
+      clearTimeout(probeTimeout);
+      if (askpassPath !== undefined) rmSync(askpassPath, { force: true });
+      if (active.probeChild === probe) active.probeChild = undefined;
+      this.recordProbeFailure(active, error.message);
+    });
+    probe.on("close", (code) => {
+      clearTimeout(probeTimeout);
+      if (askpassPath !== undefined) rmSync(askpassPath, { force: true });
+      if (active.probeChild === probe) active.probeChild = undefined;
+      if (
+        this.active.get(active.config.watch_id) !== active ||
+        active.terminalHandled ||
+        active.intentionalClose
+      )
+        return;
+      if (code === 0) {
+        active.probeFailures = 0;
+        this.scheduleProbe(active);
+        return;
+      }
+      const tail = stderrTail.toString("utf8").trim();
+      this.recordProbeFailure(
+        active,
+        killedByTimeout
+          ? `超时（${PROBE_TIMEOUT_SECONDS} 秒）`
+          : `code=${String(code)}${tail ? `: ${tail}` : ""}`,
+      );
+    });
+  }
+
+  /** Counts a failed probe and interrupts the watch when failures persist. */
+  private recordProbeFailure(active: ActiveWatch, detail: string): void {
+    if (
+      this.active.get(active.config.watch_id) !== active ||
+      active.terminalHandled ||
+      active.intentionalClose
+    )
+      return;
+    active.probeFailures += 1;
+    if (active.probeFailures < PROBE_FAILURE_THRESHOLD) {
+      this.scheduleProbe(active);
+      return;
+    }
+    this.finishOnce(active, {
+      event: "interrupt",
+      watch_id: active.config.watch_id,
+      host: active.config.host,
+      root_pid: active.config.pid,
+      process_count: 0,
+      observed_at: new Date().toISOString(),
+      state_file: active.stateFile,
+      error_code: "host_unreachable",
+      error: `连续 ${PROBE_FAILURE_THRESHOLD} 次 SSH 可达性探测失败${detail ? `: ${detail}` : ""}`,
+    });
+  }
+
+  /** Cancels pending probes and any in-flight probe child for one watch. */
+  private stopProbes(active: ActiveWatch): void {
+    if (active.probeTimer !== undefined) {
+      clearTimeout(active.probeTimer);
+      active.probeTimer = undefined;
+    }
+    const probe = active.probeChild;
+    if (probe !== undefined) {
+      active.probeChild = undefined;
+      probe.kill();
+    }
   }
 
   /** Formats bounded startup diagnostics from an early SSH exit. */

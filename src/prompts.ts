@@ -7,7 +7,10 @@ export function buildTerminalPrompt(
 ): string {
   const instruction = {
     finish: "远程进程树已经结束。请检查日志、产物和任务结果，然后继续当前计划。",
-    interrupt: "远程 Watcher 监控已中断。请检查远程任务状态和监控环境，然后决定如何继续当前计划。",
+    interrupt:
+      event.event === "interrupt" && event.error_code === "host_unreachable"
+        ? "远程主机 SSH 无法连通，Watcher 已中断。请检查网络与主机状态，然后决定如何继续当前计划。"
+        : "远程 Watcher 监控已中断。请检查远程任务状态和监控环境，然后决定如何继续当前计划。",
     close: "SSH Watcher 通道意外关闭，远程任务状态未知。请检查远程状态，然后决定如何继续当前计划。",
   }[event.event];
   const metadata = {

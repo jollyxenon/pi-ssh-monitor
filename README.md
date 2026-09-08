@@ -74,6 +74,7 @@ Package 注册三个工具：`pi_ssh_watch`（监控已运行的远程进程树�
 | `password` | 无 | SSH 密码（仅密码认证的服务器，如租用 GPU 平台）；非空且最多 512 字符。密码经临时 askpass 脚本注入子进程环境，脚本 0700 权限、SSH 结束后立即删除；会随会话记录持久化以便恢复 |
 | `interval_seconds` | `5` | 远程 `/proc` 扫描间隔 |
 | `startup_timeout_seconds` | `10` | 等待 Watcher `ready` 的秒数 |
+| `probe_interval_seconds` | `60` | 活跃期间周期性发起新 SSH 连接探测的间隔秒数；`0` 关闭探测。连续 2 次探测失败时合成 `interrupt`（error_code `host_unreachable`）
 | `result_paths` | `[]` | 最多 20 项，每项最多 1000 字符 |
 | `log_paths` | `[]` | 最多 20 项，每项最多 1000 字符 |
 | `description` | 无 | 任务说明，最多 2000 字符 |
@@ -102,6 +103,8 @@ ssh <ssh_args...> -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -- <host> p
 ```
 
 默认保活让 SSH 客户端每 30 秒经现有加密通道发送应用层保活消息，连续 3 次无响应（约 90 秒）后主动退出，此时插件按无合法终态退出合成 `close` 并 steer。弱网场景（如校园 VPN 断连导致 TCP 半开）下，这能保证断连在约 90 秒内被通报，而不是让 ssh 进程无限挂起。默认参数放在用户 `ssh_args` 之后，OpenSSH 对重复 `-o` 选项第一个生效，因此 Agent 可通过 `ssh_args` 提供同名 `-o` 覆盖默认值（例如 `"-o", "ServerAliveInterval=60"`）。保活只对新建的 SSH 子进程生效，升级前已登记的 watch 不会自动获得保活，需要重新 `pi_ssh_watch`。
+
+保活只能覆盖 watch 自己那条已建立通道的死亡。当既有通道仍然存活（服务端持续应答保活）但新 SSH 连接被拒绝或无法建立（例如集群登录节点限流、网关抖动）时，插件会按 `probe_interval_seconds`（默认 60 秒）周期性地用相同的 `ssh_args` 与 `password` 发起一条全新的 `ssh <host> exit 0` 探测（`ConnectTimeout` 8 秒、整体预算 30 秒）。连续 2 次探测失败后，插件把该 watch 置为 `interrupt`（error_code `host_unreachable`）并关闭 SSH 子进程，从而在“服务器无法联通”但旧通道仍在时也能通报。探测成功会重置失败计数；把 `probe_interval_seconds` 设为 `0` 可关闭探测（例如不希望额外占用 SSH 连接数的场景）。
 
 参数通过 `child_process.spawn()` 作为独立 argv 传递，不经过本地 shell。Python Watcher 源码和配置从 stdin 发送，远程主机不需要预装本 package。
 
@@ -242,7 +245,7 @@ boot_id + PID + start_ticks
 
 ### `interrupt`
 
-Watcher 因 `/proc` 权限、解析、状态文件读写、boot ID 不匹配或内部错误而无法继续。提示词会要求 Agent 检查远程任务和监控环境。
+Watcher 因 `/proc` 权限、解析、状态文件读写、boot ID 不匹配或内部错误而无法继续；也可能是插件侧连续 2 次 SSH 可达性探测失败（error_code `host_unreachable`，即远程主机无法建立新 SSH 连接）。提示词会要求 Agent 检查远程任务和监控环境。
 
 ### `close`
 
@@ -294,6 +297,7 @@ pi.sendMessage(message, { triggerTurn: true, deliverAs: "steer" })
 - `/proc` 进程树发现失败时，不降级成单 PID 监控。
 - 不自动读取远程日志、结果文件或完整进程树。
 - 不限制 `ssh_args` 内容；连接行为由调用方负责。插件只默认注入 `ServerAliveInterval=30` 与 `ServerAliveCountMax=3`，Agent 提供的同名选项可覆盖。
+- 可达性探测默认每 60 秒额外发起一条新 SSH 连接（连续 2 次失败即中断 watch）；不需要时可设 `probe_interval_seconds=0` 关闭，探测参数会随会话记录持久化。
 - 不提供交互式密码提示；需要密码的连接必须显式传 `password` 参数，否则可能卡在启动阶段并触发启动超时。
 - 主动关闭本机 SSH 后，远程 Python 进程不保证立即退出。
 - 根进程退出前尚未被扫描到、并且已经脱离原进程树的后代可能无法发现；需要时可降低 `interval_seconds`。

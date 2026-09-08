@@ -10,6 +10,7 @@ const originalPath = process.env.PATH;
 let temporaryDir = "";
 
 interface FakeTool {
+  name: string;
   execute: (...args: any[]) => Promise<any>;
 }
 

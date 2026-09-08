@@ -95,6 +95,13 @@ const WatchParameters = Type.Object({
       description: "Seconds to wait for the watcher to become ready (default 10)",
     }),
   ),
+  probe_interval_seconds: Type.Optional(
+    Type.Number({
+      minimum: 0,
+      description:
+        "Seconds between fresh-SSH reachability probes while watching (default 60, 0 disables). Two consecutive probe failures synthesize an interrupt with error_code host_unreachable",
+    }),
+  ),
   result_paths: Type.Optional(
     Type.Array(Type.String(), {
       description:
@@ -627,7 +634,7 @@ export default function piSshTarget(
     name: "pi_ssh_watch",
     label: "Pi SSH Watch",
     description:
-      "Monitor a remote Linux process tree over SSH and notify the local Pi Agent when the task finishes.\n\nRequired: host (SSH destination, e.g. \"user@example.com\") and pid (remote root PID — capture it when launching the task, e.g. ssh host 'nohup cmd > /tmp/out.log 2>&1 & echo $!').\n\nOptional: ssh_args (SSH client options, e.g. [\"-p\", \"2222\"]; keepalive appended automatically), password (for password-only servers), result_paths (files the task should produce, checked after finish), log_paths (log files to watch while running), description, note, interval_seconds (poll interval, default 5), startup_timeout_seconds (watcher startup timeout, default 10).",
+      "Monitor a remote Linux process tree over SSH and notify the local Pi Agent when the task finishes.\n\nRequired: host (SSH destination, e.g. \"user@example.com\") and pid (remote root PID — capture it when launching the task, e.g. ssh host 'nohup cmd > /tmp/out.log 2>&1 & echo $!').\n\nOptional: ssh_args (SSH client options, e.g. [\"-p\", \"2222\"]; keepalive appended automatically), password (for password-only servers), result_paths (files the task should produce, checked after finish), log_paths (log files to watch while running), description, note, interval_seconds (poll interval, default 5), startup_timeout_seconds (watcher startup timeout, default 10), probe_interval_seconds (fresh-SSH reachability probe interval, default 60, 0 disables; two consecutive failures synthesize an interrupt with error_code host_unreachable).",
     promptSnippet:
       "Use when a time-consuming task is running on a remote Linux server and you want to be notified when it ends. Monitors the task process tree via SSH and reports back to Pi Agent.",
     promptGuidelines: [

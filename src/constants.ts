@@ -8,6 +8,10 @@ import type {
 
 export const DEFAULT_INTERVAL_SECONDS = 5;
 export const DEFAULT_STARTUP_TIMEOUT_SECONDS = 10;
+export const DEFAULT_PROBE_INTERVAL_SECONDS = 60;
+export const PROBE_CONNECT_TIMEOUT_SECONDS = 8;
+export const PROBE_TIMEOUT_SECONDS = 30;
+export const PROBE_FAILURE_THRESHOLD = 2;
 export const DEFAULT_ACTIVE_LIMIT = 3;
 export const DEFAULT_TERMINAL_LIMIT = 0;
 export const MAX_LIST_LIMIT = 100;
@@ -52,6 +56,12 @@ function validateMetadata(input: WatchMetadataInput): string | undefined {
   ) {
     return "startup_timeout_seconds 必须大于 0";
   }
+  if (
+    input.probe_interval_seconds !== undefined &&
+    (!Number.isFinite(input.probe_interval_seconds) || input.probe_interval_seconds < 0)
+  ) {
+    return "probe_interval_seconds 必须大于等于 0（0 表示关闭探测）";
+  }
   return undefined;
 }
 
@@ -80,6 +90,7 @@ export function normalizeWatchConfig(
     ...(input.password === undefined ? {} : { password: input.password }),
     interval_seconds: input.interval_seconds ?? DEFAULT_INTERVAL_SECONDS,
     startup_timeout_seconds: input.startup_timeout_seconds ?? DEFAULT_STARTUP_TIMEOUT_SECONDS,
+    probe_interval_seconds: input.probe_interval_seconds ?? DEFAULT_PROBE_INTERVAL_SECONDS,
     result_paths: [...(input.result_paths ?? [])],
     log_paths: [...(input.log_paths ?? [])],
     ...(input.note === undefined ? {} : { note: input.note }),

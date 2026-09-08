@@ -20,6 +20,7 @@ function config(host: string, id = "watch-1"): WatchConfig {
     ssh_args: ["-o", "BatchMode=yes"],
     interval_seconds: 5,
     startup_timeout_seconds: 0.08,
+    probe_interval_seconds: 0,
     result_paths: [],
     log_paths: [],
     resume: false,

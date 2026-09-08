@@ -12,6 +12,7 @@ export interface WatchMetadataInput {
   password?: string;
   interval_seconds?: number;
   startup_timeout_seconds?: number;
+  probe_interval_seconds?: number;
   result_paths?: string[];
   log_paths?: string[];
   note?: string;
@@ -44,6 +45,7 @@ export interface WatchConfig {
   password?: string;
   interval_seconds: number;
   startup_timeout_seconds: number;
+  probe_interval_seconds?: number;
   result_paths: string[];
   log_paths: string[];
   note?: string;
@@ -121,6 +123,10 @@ export interface ActiveWatch {
   ready: boolean;
   terminalHandled: boolean;
   intentionalClose: boolean;
+  stateFile: string | null;
+  probeTimer: NodeJS.Timeout | undefined;
+  probeChild: ChildProcessWithoutNullStreams | undefined;
+  probeFailures: number;
 }
 
 /** JSON schema persisted by the remote Python watcher. */

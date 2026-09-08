@@ -20,6 +20,7 @@ import {
 import {
   DEFAULT_ACTIVE_LIMIT,
   DEFAULT_INTERVAL_SECONDS,
+  DEFAULT_PROBE_INTERVAL_SECONDS,
   DEFAULT_STARTUP_TIMEOUT_SECONDS,
   DEFAULT_TERMINAL_LIMIT,
   LIFECYCLE_ENTRY_TYPE,
@@ -113,6 +114,16 @@ describe("shared contracts", () => {
     expect(normalized.startup_timeout_seconds).toBe(
       DEFAULT_STARTUP_TIMEOUT_SECONDS,
     );
+    expect(normalized.probe_interval_seconds).toBe(
+      DEFAULT_PROBE_INTERVAL_SECONDS,
+    );
+    expect(
+      normalizeWatchConfig(
+        { host: "remote", pid: 42, probe_interval_seconds: 0 },
+        "watch-3",
+        "session-1",
+      ).probe_interval_seconds,
+    ).toBe(0);
     expect([DEFAULT_ACTIVE_LIMIT, DEFAULT_TERMINAL_LIMIT]).toEqual([3, 0]);
     const withPassword = normalizeWatchConfig(
       { host: "remote", pid: 42, password: "s3cret" },
@@ -146,6 +157,13 @@ describe("shared contracts", () => {
         result_paths: Array(21).fill("x"),
       }),
     ).toContain("20");
+    expect(
+      validateWatchInput({
+        host: "h",
+        pid: 1,
+        probe_interval_seconds: -1,
+      }),
+    ).toContain("probe_interval_seconds");
   });
 
   it("parses fixed protocol lines and preserves chunk tails", () => {

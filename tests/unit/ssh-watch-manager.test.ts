@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
+import { existsSync, readFileSync } from "node:fs";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SSH_KEEPALIVE_ARGS, PROTOCOL_PREFIX } from "../../src/constants.js";
 import { SshWatchManager, type TerminalEvent } from "../../src/ssh-watch-manager.js";
 import type { WatchConfig } from "../../src/types.js";
@@ -15,6 +16,7 @@ function config(overrides: Partial<WatchConfig> = {}): WatchConfig {
     ssh_args: [],
     interval_seconds: 5,
     startup_timeout_seconds: 10,
+    probe_interval_seconds: 0,
     result_paths: [],
     log_paths: [],
     resume: false,
@@ -113,5 +115,144 @@ describe("SshWatchManager default SSH keepalive args", () => {
       "python3",
       "-",
     ]);
+  });
+});
+
+describe("SshWatchManager host reachability probes", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Fake probe child whose close event the test triggers explicitly. */
+  function fakeProbeChild(): {
+    child: ChildProcessWithoutNullStreams;
+    events: EventEmitter;
+  } {
+    const events = new EventEmitter();
+    const stdout = new EventEmitter();
+    const stderr = new EventEmitter();
+    const child = {
+      stdout,
+      stderr,
+      stdin: { end: vi.fn() },
+      on: events.on.bind(events),
+      kill: vi.fn(),
+    } as unknown as ChildProcessWithoutNullStreams;
+    return { child, events };
+  }
+
+  it("does not spawn probes when probe_interval_seconds is 0", async () => {
+    const spawnMock = vi.fn<SpawnImpl>(() => fakeChild("watch-1", "gpu01", 123));
+    const manager = managerWith(spawnMock);
+    await manager.start(config());
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets failure counting after a successful probe", async () => {
+    const terminals: TerminalEvent[] = [];
+    const probeEvents: EventEmitter[] = [];
+    const spawnMock = vi.fn<SpawnImpl>((_command, args) => {
+      if (args.at(-1) === "-") return fakeChild("watch-1", "gpu01", 123);
+      const probe = fakeProbeChild();
+      probeEvents.push(probe.events);
+      return probe.child;
+    });
+    const manager = new SshWatchManager(
+      (_config, event) => terminals.push(event),
+      spawnMock as unknown as typeof import("node:child_process").spawn,
+      "# fake watcher",
+    );
+    await manager.start(config({ probe_interval_seconds: 60 }));
+    await vi.advanceTimersByTimeAsync(60_000);
+    probeEvents[0]!.emit("close", 0);
+    await vi.advanceTimersByTimeAsync(60_000);
+    probeEvents[1]!.emit("close", 255);
+    await vi.advanceTimersByTimeAsync(60_000);
+    probeEvents[2]!.emit("close", 0);
+    expect(terminals).toEqual([]);
+    expect(probeEvents).toHaveLength(3);
+  });
+
+  it("synthesizes host_unreachable interrupt after consecutive probe failures", async () => {
+    const terminals: TerminalEvent[] = [];
+    const probeEvents: EventEmitter[] = [];
+    const mainChild = fakeChild("watch-1", "gpu01", 123);
+    const spawnMock = vi.fn<SpawnImpl>((_command, args) => {
+      if (args.at(-1) === "-") return mainChild;
+      const probe = fakeProbeChild();
+      probeEvents.push(probe.events);
+      return probe.child;
+    });
+    const manager = new SshWatchManager(
+      (_config, event) => terminals.push(event),
+      spawnMock as unknown as typeof import("node:child_process").spawn,
+      "# fake watcher",
+    );
+    await manager.start(config({ probe_interval_seconds: 60 }));
+    await vi.advanceTimersByTimeAsync(60_000);
+    probeEvents[0]!.emit("close", 255);
+    await vi.advanceTimersByTimeAsync(60_000);
+    probeEvents[1]!.emit("close", 255);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(terminals).toHaveLength(1);
+    expect(terminals[0]).toMatchObject({
+      event: "interrupt",
+      error_code: "host_unreachable",
+      watch_id: "watch-1",
+    });
+    expect(mainChild.kill).toHaveBeenCalled();
+    expect(manager.has("watch-1")).toBe(false);
+    // No further probes after the watch turned terminal.
+    const spawnCount = spawnMock.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(spawnMock.mock.calls.length).toBe(spawnCount);
+  });
+
+  it("kills the in-flight probe when the watch is cancelled", async () => {
+    const probeEvents: EventEmitter[] = [];
+    const probes: ChildProcessWithoutNullStreams[] = [];
+    const spawnMock = vi.fn<SpawnImpl>((_command, args) => {
+      if (args.at(-1) === "-") return fakeChild("watch-1", "gpu01", 123);
+      const probe = fakeProbeChild();
+      probeEvents.push(probe.events);
+      probes.push(probe.child);
+      return probe.child;
+    });
+    const manager = managerWith(spawnMock);
+    await manager.start(config({ probe_interval_seconds: 60 }));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(probes).toHaveLength(1);
+    manager.cancel("watch-1");
+    expect(probes[0]!.kill).toHaveBeenCalled();
+  });
+
+  it("uses askpass env for password probes and removes the script on close", async () => {
+    const probeEvents: EventEmitter[] = [];
+    const spawnMock = vi.fn<SpawnImpl>((_command, args) => {
+      if (args.at(-1) === "-") return fakeChild("watch-1", "gpu01", 123);
+      const probe = fakeProbeChild();
+      probeEvents.push(probe.events);
+      return probe.child;
+    });
+    const manager = managerWith(spawnMock);
+    await manager.start(
+      config({ probe_interval_seconds: 60, password: "s3cret-pass" }),
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+    const probeOptions = spawnMock.mock.calls[1]![2] as {
+      env?: Record<string, string>;
+    };
+    expect(probeOptions.env?.SSH_ASKPASS_REQUIRE).toBe("force");
+    expect(probeOptions.env?.SSH_TARGET_PASSWORD).toBe("s3cret-pass");
+    const askpassPath = probeOptions.env?.SSH_ASKPASS;
+    expect(askpassPath).toBeTruthy();
+    expect(readFileSync(askpassPath!, "utf8")).toContain("$SSH_TARGET_PASSWORD");
+    probeEvents[0]!.emit("close", 0);
+    expect(existsSync(askpassPath!)).toBe(false);
   });
 });
