@@ -1,7 +1,7 @@
 ## 1. 配置与数据模型
 
 - [x] 1.1 新增后台审计配置类型、默认值和规范化结果，覆盖判断方法、提交内容、模型来源与缓存开关
-- [x] 1.2 实现 `~/.pi/agent/pi-ssh-target.json` 加载与严格校验，拒绝未知值、独立模型缺失字段和 `direct_llm + ssh_tool_calls`
+- [x] 1.2 实现 `~/.pi/agent/pi-ssh-monitor.json` 加载与严格校验，拒绝未知值、独立模型缺失字段和 `direct_llm + ssh_tool_calls`
 - [x] 1.3 扩展审计快照、Judge 多决策输出、后台执行结果和 lifecycle/audit custom entry 类型
 - [x] 1.4 为默认配置、合法组合、无效组合、缺失配置和独立鉴权引用补充单元测试
 

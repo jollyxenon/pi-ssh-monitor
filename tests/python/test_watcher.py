@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 MODULE_PATH = Path(__file__).resolve().parents[2] / "src" / "watcher.py"
-SPEC = importlib.util.spec_from_file_location("pi_ssh_target_watcher", MODULE_PATH)
+SPEC = importlib.util.spec_from_file_location("pi_ssh_monitor_watcher", MODULE_PATH)
 watcher = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(watcher)

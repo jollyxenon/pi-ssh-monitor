@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-contained remote Linux process-tree watcher for pi-ssh-target."""
+"""Self-contained remote Linux process-tree watcher for pi-ssh-monitor."""
 
 import errno
 import glob
@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, TextIO
 
-PROTOCOL_PREFIX = "@@PI_SSH_TARGET@@"
+PROTOCOL_PREFIX = "@@PI_SSH_MONITOR@@"
 STATE_VERSION = 1
 
 
@@ -185,7 +185,7 @@ class Watcher:
         """Returns required per-user, per-session state-file location."""
         return (
             self.state_root
-            / f"pi-ssh-target-{os.getuid()}"
+            / f"pi-ssh-monitor-{os.getuid()}"
             / self.config["session_id"]
             / f"{self.config['watch_id']}.json"
         )

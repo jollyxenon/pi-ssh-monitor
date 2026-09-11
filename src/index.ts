@@ -25,7 +25,7 @@ import {
 } from "./audit.js";
 import {
   type AuditConfig,
-  loadPiSshTargetConfig,
+  loadPiSshMonitorConfig,
   summarizeAuditConfig,
 } from "./audit-config.js";
 import {
@@ -148,7 +148,7 @@ type PiToolResult = {
   details: ToolDetails;
 };
 
-export interface PiSshTargetDependencies {
+export interface PiSshMonitorDependencies {
   judge?: (
     ctx: ExtensionContext,
     snapshot: AuditSnapshot,
@@ -163,12 +163,12 @@ type QueuedAudit = {
   context: ExtensionContext;
 };
 
-/** Registers the pi_ssh_target Agent tool and session lifecycle hooks. */
-export default function piSshTarget(
+/** Registers the pi_ssh_watch / pi_ssh_cancel / pi_ssh_list tools and session lifecycle hooks. */
+export default function piSshMonitor(
   pi: ExtensionAPI,
-  dependencies: PiSshTargetDependencies = {},
+  dependencies: PiSshMonitorDependencies = {},
 ): void {
-  const auditConfig = dependencies.auditConfig ?? loadPiSshTargetConfig().audit;
+  const auditConfig = dependencies.auditConfig ?? loadPiSshMonitorConfig().audit;
   const judge = dependencies.judge ?? judgeAuditSnapshot;
   let states = new Map<string, WatchState>();
   let auditRecords: AuditEntryRecord[] = [];

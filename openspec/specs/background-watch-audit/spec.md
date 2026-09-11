@@ -1,11 +1,11 @@
 ## Purpose
 
-让 pi-ssh-target 在不打断正式 Agent、不向主对话注入审计消息的前提下，异步识别遗漏的远程长任务并自动补建 Watcher，同时提供可验证的判断、上下文、模型和缓存配置。
+让 pi-ssh-monitor 在不打断正式 Agent、不向主对话注入审计消息的前提下，异步识别遗漏的远程长任务并自动补建 Watcher，同时提供可验证的判断、上下文、模型和缓存配置。
 
 ## Requirements
 
 ### Requirement: 主动监控流程保持首选
-系统 SHALL 保留 Agent 在当前 run 内主动调用 `pi_ssh_target start` 或 `watch` 的能力与提示，并 SHALL 将后台审计仅作为遗漏补救机制。
+系统 SHALL 保留 Agent 在当前 run 内主动调用 `pi_ssh_monitor start` 或 `watch` 的能力与提示，并 SHALL 将后台审计仅作为遗漏补救机制。
 
 #### Scenario: Agent 已主动建立 Watcher
 - **WHEN** 当前问答中已经为远程任务成功建立匹配的 Watcher

@@ -1,5 +1,5 @@
 {
-  "name": "pi-ssh-target",
+  "name": "pi-ssh-monitor",
   "version": "0.2.0",
   "description": "Pi package that steers an agent when a remote Linux process tree terminates",
   "type": "module",

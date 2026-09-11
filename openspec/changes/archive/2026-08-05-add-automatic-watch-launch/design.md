@@ -32,7 +32,7 @@
 
 扩展在 `agent_start` 建立 run accumulator，在 `tool_call`/`tool_result` 记录最终工具输入和结果，在 `agent_settled` 触发审计。`agent_end` 可能早于自动重试、压缩和 follow-up，`turn_end` 又可能早于 Agent 下一轮主动创建 Watcher，均不适合作为最终审计点。
 
-Accumulator 只保存审计需要的有界摘要。成功的 `pi_ssh_target watch` 和 `start` 结果同时进入覆盖集合。候选记录使用 tool call ID；无法获得稳定 ID 的恢复路径使用规范化内容哈希去重。
+Accumulator 只保存审计需要的有界摘要。成功的 `pi_ssh_monitor watch` 和 `start` 结果同时进入覆盖集合。候选记录使用 tool call ID；无法获得稳定 ID 的恢复路径使用规范化内容哈希去重。
 
 ### 3. 本地规则只做保守候选筛选
 

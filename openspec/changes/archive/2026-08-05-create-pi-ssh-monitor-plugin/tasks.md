@@ -1,6 +1,6 @@
 ## 1. Package 基础
 
-- [x] 1.1 创建 `pi-ssh-target` package manifest、TypeScript 配置、源码目录、测试目录和 Pi extension 入口
+- [x] 1.1 创建 `pi-ssh-monitor` package manifest、TypeScript 配置、源码目录、测试目录和 Pi extension 入口
 - [x] 1.2 配置项目脚本与依赖，提供类型检查、单元测试、集成测试和构建命令
 - [x] 1.3 定义共享类型：工具参数、watch 配置、生命周期记录、Watcher 协议事件和远程状态文件 schema
 
@@ -10,7 +10,7 @@
 - [x] 2.2 实现基于 `/proc/<pid>/task/*/children` 的递归进程树发现，并覆盖多线程父进程
 - [x] 2.3 实现 `boot_id + PID + start_ticks` 身份校验、严格 PID 消失语义和 PID 复用处理
 - [x] 2.4 实现 `ENOENT`/`ESRCH` 正常结束与权限、解析、写入等 `interrupt` 错误分类
-- [x] 2.5 实现 `/tmp/pi-ssh-target-<uid>/<session-id>/<watch-id>.json` 权限设置、每轮原子写入和终态保留
+- [x] 2.5 实现 `/tmp/pi-ssh-monitor-<uid>/<session-id>/<watch-id>.json` 权限设置、每轮原子写入和终态保留
 - [x] 2.6 实现已有状态恢复、已发现后代延续、缺失或损坏状态文件中断及 boot ID 不匹配中断
 - [x] 2.7 实现带固定前缀的 `ready`、`finish`、`interrupt` JSONL stdout 协议
 - [x] 2.8 实现根 PID 在首次登记时已不存在的立即 `finish` 行为
@@ -26,7 +26,7 @@
 
 ## 4. Pi Agent 工具
 
-- [x] 4.1 注册 `pi_ssh_target` 工具和 `watch`、`cancel`、`list` action schema
+- [x] 4.1 注册 `pi_ssh_monitor` 工具和 `watch`、`cancel`、`list` action schema
 - [x] 4.2 实现 `watch` 必填参数、默认 5 秒扫描间隔、默认 10 秒启动超时和 `ssh_args[]` 透传
 - [x] 4.3 实现 job、note、路径数量与长度限制，超限时在启动 SSH 前返回参数错误
 - [x] 4.4 实现 `cancel`：关闭本机 SSH、记录 cancelled、不等待远程确认、不删除状态文件且不发送 `close`

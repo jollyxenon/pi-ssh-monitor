@@ -4,7 +4,7 @@
 
 ## What Changes
 
-- 保留 Agent 主动调用 `pi_ssh_target start/watch` 的现有首选流程。
+- 保留 Agent 主动调用 `pi_ssh_monitor start/watch` 的现有首选流程。
 - 将 `agent_settled` 后的遗漏审计改为完全异步执行，不阻塞新一轮问答，也不通过消息把审计结果注入正式 Agent 上下文。
 - 后台 Judge 判断需要监控时，由 extension 校验参数并直接建立 Watcher；失败或信息不足时只持久化审计结果。
 - 增加可配置的判断方法：先本地筛选再交给 LLM，或每轮直接交给 LLM。

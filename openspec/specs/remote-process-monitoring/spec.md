@@ -1,12 +1,12 @@
 ## Purpose
 
-定义 pi-ssh-target 的远程 Linux 进程树监控、生命周期、持久化和 Agent 通知行为。
+定义 pi-ssh-monitor 的远程 Linux 进程树监控、生命周期、持久化和 Agent 通知行为。
 ## Requirements
 ### Requirement: Pi package and Agent tool
-系统 SHALL 以可安装 Pi package `pi-ssh-target` 提供三个 Agent 工具：`pi_ssh_watch`（监控已运行的远程进程树）、`pi_ssh_cancel`（取消监控）、`pi_ssh_list`（查看监控列表）。系统 SHALL NOT 提供 `pi_ssh_target` 单一工具或 `start` action。系统 SHALL NOT 提供用户 slash command 作为主要操作入口。
+系统 SHALL 以可安装 Pi package `pi-ssh-monitor` 提供三个 Agent 工具：`pi_ssh_watch`（监控已运行的远程进程树）、`pi_ssh_cancel`（取消监控）、`pi_ssh_list`（查看监控列表）。系统 SHALL NOT 提供 `pi_ssh_monitor` 单一工具或 `start` action。系统 SHALL NOT 提供用户 slash command 作为主要操作入口。
 
 #### Scenario: Agent discovers the tool
-- **WHEN** `pi-ssh-target` package 被 Pi 加载
+- **WHEN** `pi-ssh-monitor` package 被 Pi 加载
 - **THEN** Agent 可调用名为 `pi_ssh_watch`、`pi_ssh_cancel`、`pi_ssh_list` 的三个工具
 - **THEN** `pi_ssh_watch` 工具 schema 以必填字段要求 `host` 和 `pid`
 ### Requirement: Watch input contract
@@ -155,7 +155,7 @@ Watcher SHALL 将 `EACCES`、`EPERM`、无法解析 `/proc`、无法写入状态
 - **THEN** Watcher停止监控
 
 ### Requirement: Remote state persistence
-Watcher SHALL 在每轮扫描后把 watch 配置、boot ID、全部已发现 PID 的 `start_ticks`、`started_at`、`ended_at` 和扫描时间原子写入 `/tmp/pi-ssh-target-<uid>/<session-id>/<watch-id>.json`。目录权限 SHALL 为 `0700`，文件权限 SHALL 为 `0600`。终态后文件 SHALL 保留。
+Watcher SHALL 在每轮扫描后把 watch 配置、boot ID、全部已发现 PID 的 `start_ticks`、`started_at`、`ended_at` 和扫描时间原子写入 `/tmp/pi-ssh-monitor-<uid>/<session-id>/<watch-id>.json`。目录权限 SHALL 为 `0700`，文件权限 SHALL 为 `0600`。终态后文件 SHALL 保留。
 
 #### Scenario: Persist a scan atomically
 - **WHEN** Watcher完成一轮有效扫描

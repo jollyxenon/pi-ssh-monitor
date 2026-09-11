@@ -1,6 +1,6 @@
 ## Context
 
-`pi-ssh-target` 要解决的不是远程任务调度，而是远程进程树结束后如何把事件送回当前 Pi session。插件运行在 Linux/WSL 本机，远程主机必须是提供 Python 3 和 `/proc` 的 Linux。Agent 已经能够通过常规 SSH 参数连接目标服务器，因此插件不维护服务器清单，也不安装常驻服务。
+`pi-ssh-monitor` 要解决的不是远程任务调度，而是远程进程树结束后如何把事件送回当前 Pi session。插件运行在 Linux/WSL 本机，远程主机必须是提供 Python 3 和 `/proc` 的 Linux。Agent 已经能够通过常规 SSH 参数连接目标服务器，因此插件不维护服务器清单，也不安装常驻服务。
 
 用户明确排除了本机轮询、反向隧道、HTTP 回调、token、消息补发和自动重试。最终方案让每个 watch 拥有一条由插件管理的后台 SSH 子进程；SSH 在远程前台运行 Python Watcher，Watcher 通过 stdout 返回结构化终态。工具调用只等待启动握手，不等待目标任务结束。
 
@@ -8,7 +8,7 @@
 
 **Goals:**
 
-- 提供可安装 Pi package `pi-ssh-target` 和 Agent 工具 `pi_ssh_target`。
+- 提供可安装 Pi package `pi-ssh-monitor` 和 Agent 工具 `pi_ssh_monitor`。
 - 通过 `watch`、`cancel`、`list` 管理当前 Pi session 的远程进程树监控。
 - 动态发现完整进程树，并用稳定的 Linux 进程身份避免 PID 复用误判。
 - 在 `finish`、`interrupt`、`close` 到达时立即 steer 当前 Agent。
@@ -80,7 +80,7 @@ boot_id + pid + start_ticks
 每个 watch 的状态文件位于：
 
 ```text
-/tmp/pi-ssh-target-<uid>/<session-id>/<watch-id>.json
+/tmp/pi-ssh-monitor-<uid>/<session-id>/<watch-id>.json
 ```
 
 目录权限为 `0700`，文件权限为 `0600`。每轮扫描先写同目录临时文件，再通过原子 rename 替换正式文件。记录包括 watch 配置、`boot_id`、所有已发现 PID 的 `start_ticks`、`started_at`、`ended_at` 和最后扫描时间。
@@ -150,7 +150,7 @@ boot_id + pid + start_ticks
 5. 增加集成测试，使用本机 Linux 进程模拟远程 SSH 协议；再在一台实际服务器完成 smoke test。
 6. 编写安装、工具参数、资源模型和已知限制文档。
 
-回滚只需从 Pi 配置中禁用或卸载 package。远程 `/tmp/pi-ssh-target-*` 状态文件可保留，也可由用户手动删除。
+回滚只需从 Pi 配置中禁用或卸载 package。远程 `/tmp/pi-ssh-monitor-*` 状态文件可保留，也可由用户手动删除。
 
 ## Open Questions
 

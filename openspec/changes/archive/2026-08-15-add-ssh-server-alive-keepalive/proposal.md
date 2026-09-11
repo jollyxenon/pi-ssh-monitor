@@ -1,6 +1,6 @@
 ## Why
 
-校园 VPN 等弱网场景下，SSH 连接断连通常表现为 TCP 半开（无 RST/FIN），本地 ssh 客户端默认不发送应用层保活（`ServerAliveInterval=0`），导致 ssh 进程长时间挂起、远程 Watcher 输出送不回来，pi-ssh-target 收不到任何终态事件，断连后完全静默不通报。需要默认启用连接保活，让断连在约 90 秒内被检测并触发 `close` 通报。
+校园 VPN 等弱网场景下，SSH 连接断连通常表现为 TCP 半开（无 RST/FIN），本地 ssh 客户端默认不发送应用层保活（`ServerAliveInterval=0`），导致 ssh 进程长时间挂起、远程 Watcher 输出送不回来，pi-ssh-monitor 收不到任何终态事件，断连后完全静默不通报。需要默认启用连接保活，让断连在约 90 秒内被检测并触发 `close` 通报。
 
 ## What Changes
 

@@ -1,6 +1,6 @@
-# pi-ssh-target
+# pi-ssh-monitor
 
-`pi-ssh-target` 是一个用于 Pi 的 SSH 进程监控插件。Agent 先通过普通 SSH 启动远程任务并获取根 PID，再把 PID 交给 `pi_ssh_watch` 建立进程树监控。任务结束、Watcher 中断或 SSH 连接异常关闭时，插件会通过 `steer` 唤醒原来的 Pi session。
+`pi-ssh-monitor` 是一个用于 Pi 的 SSH 进程监控插件。Agent 先通过普通 SSH 启动远程任务并获取根 PID，再把 PID 交给 `pi_ssh_watch` 建立进程树监控。任务结束、Watcher 中断或 SSH 连接异常关闭时，插件会通过 `steer` 唤醒原来的 Pi session。
 
 插件还会在一次 Agent run 完全结束后创建审计快照，并在后台异步检查本轮是否漏建监控。审计不会阻塞下一轮问答，也不会向正式 Agent 上下文注入补救消息；只有 Judge 给出的 host、PID 和 SSH 参数能由工具证据验证时，extension 才会静默补建 Watcher。
 
@@ -26,26 +26,26 @@
 项目目前没有发布到 npm，也还没有版本标签。请直接从 GitHub 的 `main` 分支安装：
 
 ```bash
-pi install git:github.com/jollyxenon/pi-ssh-target
+pi install git:github.com/jollyxenon/pi-ssh-monitor
 ```
 
 这会把插件写入用户级配置，对所有项目生效。只想在当前项目使用时，加上 `-l`：
 
 ```bash
-pi install -l git:github.com/jollyxenon/pi-ssh-target
+pi install -l git:github.com/jollyxenon/pi-ssh-monitor
 ```
 
 想先试用、不修改配置，可以运行：
 
 ```bash
-pi -e git:github.com/jollyxenon/pi-ssh-target
+pi -e git:github.com/jollyxenon/pi-ssh-monitor
 ```
 
 本地开发时也可以从仓库目录加载：
 
 ```bash
-git clone https://github.com/jollyxenon/pi-ssh-target.git
-cd pi-ssh-target
+git clone https://github.com/jollyxenon/pi-ssh-monitor.git
+cd pi-ssh-monitor
 npm install
 pi -e .
 ```
@@ -160,7 +160,7 @@ ssh <ssh_args...> -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -- <host> p
 配置文件为：
 
 ```text
-~/.pi/agent/pi-ssh-target.json
+~/.pi/agent/pi-ssh-monitor.json
 ```
 
 未创建配置文件时使用默认值：
@@ -198,7 +198,7 @@ ssh <ssh_args...> -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -- <host> p
       "source": "independent",
       "provider": "anthropic",
       "model": "claude-haiku-4-5",
-      "apiKeyEnv": "PI_SSH_TARGET_JUDGE_API_KEY"
+      "apiKeyEnv": "PI_SSH_MONITOR_JUDGE_API_KEY"
     },
     "cacheEnabled": true
   }
@@ -230,7 +230,7 @@ boot_id + PID + start_ticks
 每轮有效扫描都会原子写入：
 
 ```text
-/tmp/pi-ssh-target-<uid>/<session-id>/<watch-id>.json
+/tmp/pi-ssh-monitor-<uid>/<session-id>/<watch-id>.json
 ```
 
 目录权限为 `0700`，文件权限为 `0600`。状态文件包含 watch 配置、boot ID、已发现 PID 的稳定身份、启动时间、观测终止时间和最后扫描时间。终态后文件仍会保留，插件不负责自动清理。
@@ -314,7 +314,7 @@ npm run test:integration
 npm test
 npm run build
 npm run pack:check
-openspec validate --change create-pi-ssh-target-plugin
+openspec validate --change create-pi-ssh-monitor-plugin
 ```
 
 `test:integration` 包含模拟 SSH 的行为测试，以及 Linux/WSL 本机父子进程树的端到端测试。远程 smoke test 已在 `datatech013`（Linux、Python 3.8.10）通过，覆盖自定义 `ssh_args[]`、`finish` steer、`0600` 状态文件和 `0700` 状态目录。

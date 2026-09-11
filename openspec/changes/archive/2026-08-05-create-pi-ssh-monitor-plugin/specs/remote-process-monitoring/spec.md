@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Pi package and Agent tool
-系统 SHALL 以可安装 Pi package `pi-ssh-target` 提供 Agent 工具 `pi_ssh_target`，并 SHALL 支持 `watch`、`cancel`、`list` 三种 action。系统 SHALL NOT 提供用户 slash command 作为主要操作入口。
+系统 SHALL 以可安装 Pi package `pi-ssh-monitor` 提供 Agent 工具 `pi_ssh_monitor`，并 SHALL 支持 `watch`、`cancel`、`list` 三种 action。系统 SHALL NOT 提供用户 slash command 作为主要操作入口。
 
 #### Scenario: Agent discovers the tool
-- **WHEN** `pi-ssh-target` package 被 Pi 加载
-- **THEN** Agent 可调用名为 `pi_ssh_target` 的工具
+- **WHEN** `pi-ssh-monitor` package 被 Pi 加载
+- **THEN** Agent 可调用名为 `pi_ssh_monitor` 的工具
 - **THEN** 工具 schema 包含 `watch`、`cancel`、`list` action
 
 ### Requirement: Watch input contract
@@ -100,7 +100,7 @@ Watcher SHALL 将 `EACCES`、`EPERM`、无法解析 `/proc`、无法写入状态
 - **THEN** Watcher停止监控
 
 ### Requirement: Remote state persistence
-Watcher SHALL 在每轮扫描后把 watch 配置、boot ID、全部已发现 PID 的 `start_ticks`、`started_at`、`ended_at` 和扫描时间原子写入 `/tmp/pi-ssh-target-<uid>/<session-id>/<watch-id>.json`。目录权限 SHALL 为 `0700`，文件权限 SHALL 为 `0600`。终态后文件 SHALL 保留。
+Watcher SHALL 在每轮扫描后把 watch 配置、boot ID、全部已发现 PID 的 `start_ticks`、`started_at`、`ended_at` 和扫描时间原子写入 `/tmp/pi-ssh-monitor-<uid>/<session-id>/<watch-id>.json`。目录权限 SHALL 为 `0700`，文件权限 SHALL 为 `0600`。终态后文件 SHALL 保留。
 
 #### Scenario: Persist a scan atomically
 - **WHEN** Watcher完成一轮有效扫描

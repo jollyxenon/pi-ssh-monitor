@@ -34,7 +34,7 @@ function delay(milliseconds: number): Promise<void> {
 
 describe.sequential("SshWatchManager", () => {
   beforeEach(() => {
-    temporaryDir = mkdtempSync(join(tmpdir(), "pi-ssh-target-test-"));
+    temporaryDir = mkdtempSync(join(tmpdir(), "pi-ssh-monitor-test-"));
     process.env.PATH = `${fixtureDir}:${originalPath ?? ""}`;
     process.env.FAKE_SSH_COUNT_FILE = join(temporaryDir, "count");
   });

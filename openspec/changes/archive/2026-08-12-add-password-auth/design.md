@@ -22,7 +22,7 @@
 - 备选：sshpass `-e`（密码进 env）——仍依赖外部二进制；Node pty（`node-pty`）——新增重依赖。
 
 ### 临时 askpass 脚本只读环境变量，明文密码不写入脚本
-- 生成一次性脚本（`tmpdir()/pi-ssh-target-askpass-<uuid>`，mode 0700），内容为 `printf '%s\n' "$SSH_TARGET_PASSWORD"`；密码通过 spawn `env` 的 `SSH_TARGET_PASSWORD` 传入。askpass 脚本继承 ssh 子进程环境，读变量输出密码。
+- 生成一次性脚本（`tmpdir()/pi-ssh-monitor-askpass-<uuid>`，mode 0700），内容为 `printf '%s\n' "$SSH_TARGET_PASSWORD"`；密码通过 spawn `env` 的 `SSH_TARGET_PASSWORD` 传入。askpass 脚本继承 ssh 子进程环境，读变量输出密码。
 - 理由：脚本不含密码明文，即使脚本残留也不泄露；`env` 只对同用户可见，与 SSH 标准 askpass 行为一致。
 - 备选：把密码直接写进脚本（JSON 转义）——脚本残留即泄露，弃用。
 

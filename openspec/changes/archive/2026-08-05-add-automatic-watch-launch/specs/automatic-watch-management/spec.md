@@ -7,11 +7,11 @@
 ## ADDED Requirements
 
 ### Requirement: 强制提示 Agent 登记远程长任务
-系统 SHALL 在 `pi_ssh_target` 激活时明确要求 Agent：启动预计长期运行或脱离当前 SSH 命令的远程 Linux 任务后，必须在同一 Agent run 内登记 Watcher，或明确说明无法登记的原因。
+系统 SHALL 在 `pi_ssh_monitor` 激活时明确要求 Agent：启动预计长期运行或脱离当前 SSH 命令的远程 Linux 任务后，必须在同一 Agent run 内登记 Watcher，或明确说明无法登记的原因。
 
 #### Scenario: 长任务正常登记
 - **WHEN** Agent 启动远程长任务并获得稳定根 PID
-- **THEN** 系统提示 Agent 在结束当前 run 前调用 `pi_ssh_target watch` 或 `start`
+- **THEN** 系统提示 Agent 在结束当前 run 前调用 `pi_ssh_monitor watch` 或 `start`
 
 #### Scenario: 无法登记
 - **WHEN** Agent 无法获得稳定 PID、任务已结束或用户明确拒绝监控
@@ -70,7 +70,7 @@
 - **THEN** 系统按稳定标识或内容摘要跳过重复审计
 
 ### Requirement: start action 使用结构化启动参数
-`pi_ssh_target` SHALL 提供 `start` action，接受 SSH destination、`command`、`args[]`、`job_id`，并可接受 `cwd`、环境变量、SSH 参数、扫描间隔、启动超时、日志路径、结果路径和 note。
+`pi_ssh_monitor` SHALL 提供 `start` action，接受 SSH destination、`command`、`args[]`、`job_id`，并可接受 `cwd`、环境变量、SSH 参数、扫描间隔、启动超时、日志路径、结果路径和 note。
 
 #### Scenario: 使用参数数组启动脚本
 - **WHEN** Agent 提交 `command: "python3"` 和独立的脚本参数数组
@@ -96,7 +96,7 @@
 
 #### Scenario: 使用默认日志路径
 - **WHEN** 调用方未提供 stdout 或 stderr 路径
-- **THEN** 系统在 `/tmp/pi-ssh-target-<uid>/<session-id>/` 下创建对应日志文件，返回实际路径并加入终态通知的日志路径
+- **THEN** 系统在 `/tmp/pi-ssh-monitor-<uid>/<session-id>/` 下创建对应日志文件，返回实际路径并加入终态通知的日志路径
 
 #### Scenario: 覆盖日志路径
 - **WHEN** 调用方提供 stdout 或 stderr 路径

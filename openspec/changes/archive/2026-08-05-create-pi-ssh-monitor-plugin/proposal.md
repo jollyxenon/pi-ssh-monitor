@@ -4,7 +4,7 @@
 
 ## What Changes
 
-- 创建可安装 Pi package `pi-ssh-target`，注册 Agent 工具 `pi_ssh_target`。
+- 创建可安装 Pi package `pi-ssh-monitor`，注册 Agent 工具 `pi_ssh_monitor`。
 - 提供 `watch`、`cancel`、`list` 三种工具 action。
 - `watch` 通过非阻塞后台 SSH 启动远程 Python Watcher；每个 watch 使用独立 SSH 通道和唯一 `watch_id`。
 - Watcher 基于 Linux `/proc/<pid>/task/*/children` 动态发现并监控完整进程树，使用 `boot_id + PID + start_ticks` 校验进程身份。

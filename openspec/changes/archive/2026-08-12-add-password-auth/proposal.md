@@ -1,10 +1,10 @@
 ## Why
 
-大量租用 GPU/云服务器（如 gpuhome）只提供 root 密码认证，不开放密钥配置；当前 pi-ssh-target 的 spawn("ssh") 非交互连接在无 tty 下无法提示密码，导致这类服务器连接卡死直到启动超时。需要让工具直接支持密码认证。
+大量租用 GPU/云服务器（如 gpuhome）只提供 root 密码认证，不开放密钥配置；当前 pi-ssh-monitor 的 spawn("ssh") 非交互连接在无 tty 下无法提示密码，导致这类服务器连接卡死直到启动超时。需要让工具直接支持密码认证。
 
 ## What Changes
 
-- `pi_ssh_target` 的 `watch` 与 `start` action 增加可选 `password` 参数。
+- `pi_ssh_monitor` 的 `watch` 与 `start` action 增加可选 `password` 参数。
 - 存在 `password` 时，插件通过 OpenSSH `SSH_ASKPASS` + `SSH_ASKPASS_REQUIRE=force` 机制为非交互 spawn 提供密码，不引入外部依赖（sshpass 等），密码不进入命令行 argv。
 - 密码通过一次性临时 askpass 脚本传入 ssh 进程环境；脚本以 0600 权限创建、ssh 子进程结束后立即删除，明文密码不落盘。
 - `WatchConfig` 持久化 `password`，会话恢复（resume）时沿用密码重连。

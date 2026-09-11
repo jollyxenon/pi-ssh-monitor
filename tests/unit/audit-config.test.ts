@@ -4,16 +4,16 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_AUDIT_CONFIG,
-  loadPiSshTargetConfig,
-  parsePiSshTargetConfig,
+  loadPiSshMonitorConfig,
+  parsePiSshMonitorConfig,
 } from "../../src/audit-config.js";
 
 let directory = "";
 
 /** Creates one temporary config path for strict loader tests. */
 function configPath(): string {
-  directory = mkdtempSync(join(tmpdir(), "pi-ssh-target-config-"));
-  return join(directory, "pi-ssh-target.json");
+  directory = mkdtempSync(join(tmpdir(), "pi-ssh-monitor-config-"));
+  return join(directory, "pi-ssh-monitor.json");
 }
 
 afterEach(() => {
@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe("audit configuration", () => {
   it("uses defaults when the user config is missing", () => {
-    expect(loadPiSshTargetConfig(configPath() + ".missing").audit).toEqual(
+    expect(loadPiSshMonitorConfig(configPath() + ".missing").audit).toEqual(
       DEFAULT_AUDIT_CONFIG,
     );
   });
@@ -46,7 +46,7 @@ describe("audit configuration", () => {
         },
       }),
     );
-    expect(loadPiSshTargetConfig(path).audit).toMatchObject({
+    expect(loadPiSshMonitorConfig(path).audit).toMatchObject({
       judgmentMethod: "prefilter_then_llm",
       submission: "full_context",
       model: {
@@ -61,15 +61,15 @@ describe("audit configuration", () => {
   it("rejects malformed JSON, unknown keys, invalid enums, and plaintext-like key fields", () => {
     const path = configPath();
     writeFileSync(path, "{");
-    expect(() => loadPiSshTargetConfig(path)).toThrow();
-    expect(() => parsePiSshTargetConfig({ audit: { unknown: true } })).toThrow(
+    expect(() => loadPiSshMonitorConfig(path)).toThrow();
+    expect(() => parsePiSshMonitorConfig({ audit: { unknown: true } })).toThrow(
       "未知字段",
     );
     expect(() =>
-      parsePiSshTargetConfig({ audit: { submission: "everything" } }),
+      parsePiSshMonitorConfig({ audit: { submission: "everything" } }),
     ).toThrow("audit.submission");
     expect(() =>
-      parsePiSshTargetConfig({
+      parsePiSshMonitorConfig({
         audit: {
           model: {
             source: "independent",

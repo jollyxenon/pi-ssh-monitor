@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LIFECYCLE_ENTRY_TYPE } from "../../src/constants.js";
-import piSshTarget from "../../src/index.js";
+import piSshMonitor from "../../src/index.js";
 
 const fixtureDir = resolve("tests/fixtures");
 const originalPath = process.env.PATH;
@@ -108,9 +108,9 @@ async function callTool(
   return tool.execute("call-1", rest, undefined, undefined, {});
 }
 
-describe.sequential("pi_ssh_target extension", () => {
+describe.sequential("pi_ssh_monitor extension", () => {
   beforeEach(() => {
-    temporaryDir = mkdtempSync(join(tmpdir(), "pi-ssh-target-extension-"));
+    temporaryDir = mkdtempSync(join(tmpdir(), "pi-ssh-monitor-extension-"));
     process.env.PATH = `${fixtureDir}:${originalPath ?? ""}`;
     process.env.FAKE_SSH_COUNT_FILE = join(temporaryDir, "count");
   });
@@ -123,7 +123,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("rejects oversized metadata before spawning ssh", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any);
+    piSshMonitor(pi as any);
     await pi.emit("session_start");
     const result = await callTool(pi, {
       host: "hang",
@@ -138,7 +138,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("supports duplicate registration, list overrides, and cancel without close steer", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any);
+    piSshMonitor(pi as any);
     await pi.emit("session_start");
     const first = await callTool(pi, {
       host: "hang",
@@ -184,7 +184,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("persists started then terminal and sends each finish as independent steer", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any);
+    piSshMonitor(pi as any);
     await pi.emit("session_start");
     await callTool(pi, {
       host: "finish",
@@ -221,7 +221,7 @@ describe.sequential("pi_ssh_target extension", () => {
   it("audits a possible remote launch asynchronously and silently creates a watcher", async () => {
     const pi = new FakePi();
     let judgeCalls = 0;
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => {
         judgeCalls += 1;
         await delay(60);
@@ -277,7 +277,7 @@ describe.sequential("pi_ssh_target extension", () => {
   it("keeps Judge and auto-watch silent when audit persistence is unavailable", async () => {
     const pi = new FailingAppendPi();
     let judgeCalls = 0;
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => {
         judgeCalls += 1;
         return {
@@ -315,7 +315,7 @@ describe.sequential("pi_ssh_target extension", () => {
     let active = 0;
     let maximum = 0;
     let calls = 0;
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async (_ctx, snapshot) => {
         calls += 1;
         active += 1;
@@ -371,7 +371,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("discards an asynchronous Judge result after session shutdown", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => {
         await delay(60);
         return {
@@ -412,7 +412,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("contains a rejected background Judge without an unhandled rejection", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => {
         throw new Error("judge exploded");
       },
@@ -437,7 +437,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("automatically watches multiple evidence-backed tasks and ignores hallucinated parameters", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => ({
         decisions: [
           {
@@ -500,7 +500,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("retains a launch candidate after the bounded evidence buffer fills with read-only SSH calls", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async (_ctx, snapshot) => {
         const index = snapshot.evidence.findIndex(
           (item) => item.tool_call_id === "launch-after-reads",
@@ -552,7 +552,7 @@ describe.sequential("pi_ssh_target extension", () => {
   it("does not invoke Judge for a task already covered by a successful watch result", async () => {
     const pi = new FakePi();
     let judgeCalls = 0;
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => {
         judgeCalls += 1;
         return { decisions: [] };
@@ -586,7 +586,7 @@ describe.sequential("pi_ssh_target extension", () => {
   it("does not invoke Judge when a branch watcher was started before the audited exchange", async () => {
     const pi = new FakePi();
     let judgeCalls = 0;
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => {
         judgeCalls += 1;
         return { decisions: [] };
@@ -618,7 +618,7 @@ describe.sequential("pi_ssh_target extension", () => {
   it("does not invoke Judge when a terminal branch watcher already covers the same PID", async () => {
     const pi = new FakePi();
     let judgeCalls = 0;
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => {
         judgeCalls += 1;
         return { decisions: [] };
@@ -654,7 +654,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("keeps automatic watcher terminal events as the only user-visible wake-up", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => ({
         decisions: [
           {
@@ -681,13 +681,13 @@ describe.sequential("pi_ssh_target extension", () => {
     await pi.emit("agent_settled");
     await delay(80);
     expect(pi.messages).toHaveLength(1);
-    expect(pi.messages[0]?.message.customType).toBe("pi-ssh-target-terminal");
+    expect(pi.messages[0]?.message.customType).toBe("pi-ssh-monitor-terminal");
     expect(pi.messages[0]?.options.deliverAs).toBe("steer");
   });
 
   it("records automatic watcher startup failure without waking the Agent", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => ({
         decisions: [
           {
@@ -720,7 +720,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("keeps a replacement watcher registered when the old same-id SSH closes after session_tree", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any);
+    piSshMonitor(pi as any);
     await pi.emit("session_start");
     const started = await callTool(pi, {
       action: "watch",
@@ -743,7 +743,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("drops an old queued terminal callback after session_tree restores the same watch ID", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any);
+    piSshMonitor(pi as any);
     await pi.emit("session_start");
     const started = await callTool(pi, {
       action: "watch",
@@ -772,7 +772,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("does not synthesize restore close after shutdown invalidates the restore generation", async () => {
     const firstPi = new FakePi();
-    piSshTarget(firstPi as any);
+    piSshMonitor(firstPi as any);
     await firstPi.emit("session_start");
     const started = await callTool(firstPi, {
       action: "watch",
@@ -783,7 +783,7 @@ describe.sequential("pi_ssh_target extension", () => {
     await firstPi.emit("session_shutdown");
 
     const secondPi = new FakePi(firstPi.entries);
-    piSshTarget(secondPi as any);
+    piSshMonitor(secondPi as any);
     await secondPi.emit("session_start");
     await secondPi.emit("session_shutdown");
     await delay(140);
@@ -796,7 +796,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("does not start later suggestions after an earlier automatic watcher is cancelled", async () => {
     const pi = new FakePi();
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => ({
         decisions: [
           {
@@ -846,7 +846,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("cancels an orphaned automatic watcher when lifecycle persistence fails", async () => {
     const pi = new FailingAppendPi();
-    piSshTarget(pi as any, {
+    piSshMonitor(pi as any, {
       judge: async () => ({
         decisions: [
           {
@@ -879,7 +879,7 @@ describe.sequential("pi_ssh_target extension", () => {
 
   it("restores only started branch watches and suppresses close during reload", async () => {
     const firstPi = new FakePi();
-    piSshTarget(firstPi as any);
+    piSshMonitor(firstPi as any);
     await firstPi.emit("session_start");
     const started = await callTool(firstPi, {
       action: "watch",
@@ -892,7 +892,7 @@ describe.sequential("pi_ssh_target extension", () => {
     expect(firstPi.messages).toHaveLength(0);
 
     const secondPi = new FakePi(firstPi.entries);
-    piSshTarget(secondPi as any);
+    piSshMonitor(secondPi as any);
     await secondPi.emit("session_start");
     await delay();
     expect(
@@ -912,7 +912,7 @@ describe.sequential("pi_ssh_target extension", () => {
       .split("\n").length;
 
     const thirdPi = new FakePi(secondPi.entries);
-    piSshTarget(thirdPi as any);
+    piSshMonitor(thirdPi as any);
     await thirdPi.emit("session_start");
     await delay();
     const countAfterTerminalResume = readFileSync(

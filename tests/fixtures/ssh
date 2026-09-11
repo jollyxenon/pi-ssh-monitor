@@ -28,7 +28,7 @@ process.stdin.on("end", () => {
       }) + "\n",
     );
   }
-  const prefix = "@@PI_SSH_TARGET@@";
+  const prefix = "@@PI_SSH_MONITOR@@";
   const base = {
     watch_id: config.watch_id,
     description: config.description,
@@ -36,12 +36,12 @@ process.stdin.on("end", () => {
     root_pid: config.root_pid,
     process_count: 2,
     observed_at: "2025-01-01T00:00:00.000Z",
-    state_file: `/tmp/pi-ssh-target-test/${config.watch_id}.json`,
+    state_file: `/tmp/pi-ssh-monitor-test/${config.watch_id}.json`,
   };
   const send = (event) => process.stdout.write(prefix + JSON.stringify({ ...base, ...event }) + "\n");
   if (config.command) {
-    const stdoutPath = `/tmp/pi-ssh-target-test/${config.watch_id}.stdout.log`;
-    const stderrPath = `/tmp/pi-ssh-target-test/${config.watch_id}.stderr.log`;
+    const stdoutPath = `/tmp/pi-ssh-monitor-test/${config.watch_id}.stdout.log`;
+    const stderrPath = `/tmp/pi-ssh-monitor-test/${config.watch_id}.stderr.log`;
     if (config.host === "launch-fail") {
       send({ event: "interrupt", error_code: "launch_failed", error: "command not found" });
       return;

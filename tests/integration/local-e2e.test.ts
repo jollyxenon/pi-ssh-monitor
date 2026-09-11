@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import piSshTarget from "../../src/index.js";
+import piSshMonitor from "../../src/index.js";
 
 const originalPath = process.env.PATH;
 let target: ChildProcess | undefined;
@@ -60,7 +60,7 @@ describe("Linux/WSL local end-to-end", () => {
     if (!target.pid) throw new Error("failed to start target process");
 
     const pi = new EndToEndPi();
-    piSshTarget(pi as any);
+    piSshMonitor(pi as any);
     await pi.startSession();
     const watchResult = await pi.tools.pi_ssh_watch.execute(
       "e2e-start",
@@ -95,7 +95,7 @@ describe("Linux/WSL local end-to-end", () => {
     if (!target.pid) throw new Error("failed to start target process");
 
     const pi = new EndToEndPi();
-    piSshTarget(pi as any);
+    piSshMonitor(pi as any);
     await pi.startSession();
     const watchResult = await pi.tools.pi_ssh_watch.execute(
       "e2e-call",

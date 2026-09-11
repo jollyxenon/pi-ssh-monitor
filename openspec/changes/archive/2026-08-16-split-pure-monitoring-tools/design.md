@@ -1,6 +1,6 @@
 ## Context
 
-现状是单一 `pi_ssh_target` 工具，用 `action` 枚举（`watch`/`start`/`cancel`/`list`）分发到四个操作。所有参数放在一个宽泛 union schema 中且全部 Optional，必填性依赖运行时校验（`requireWatchFields`/`requireStartFields`）。远程 Watcher 支持两种模式：监控已运行 PID，或通过 `launchMode` 远程启动新任务。详见 proposal.md。
+现状是单一 `pi_ssh_monitor` 工具，用 `action` 枚举（`watch`/`start`/`cancel`/`list`）分发到四个操作。所有参数放在一个宽泛 union schema 中且全部 Optional，必填性依赖运行时校验（`requireWatchFields`/`requireStartFields`）。远程 Watcher 支持两种模式：监控已运行 PID，或通过 `launchMode` 远程启动新任务。详见 proposal.md。
 
 ## Goals / Non-Goals
 
@@ -20,7 +20,7 @@
 `start` 直接移除而不是保留为独立工具。理由：启动本质是"执行远程命令"，Agent 的 SSH 能力已覆盖；工具只保留监控闭环（watch/cancel/list），schema 从 20+ 字段收缩到最少，参数混淆问题（如 `args` 被误认为 SSH 参数）从根上消失。替代方案（保留 4 个工具）被否决：启动参数依然需要一整套 schema，混淆源仍在。
 
 ### 2. 命名差异化避免相似混淆
-四个相似前缀名（`pi_ssh_target_watch` 等）会增加模型选错工具的概率，因此使用 `pi_ssh_watch` / `pi_ssh_cancel` / `pi_ssh_list`，动词直接跟在 `pi_ssh_` 后。
+四个相似前缀名（`pi_ssh_monitor_watch` 等）会增加模型选错工具的概率，因此使用 `pi_ssh_watch` / `pi_ssh_cancel` / `pi_ssh_list`，动词直接跟在 `pi_ssh_` 后。
 
 ### 3. 提示词分层
 - `promptSnippet`：一行"何时用"（Available tools 索引）。
@@ -44,7 +44,7 @@
 
 - 代码与测试同步完成；`dist/` 重新构建。
 - 无数据迁移：session 生命周期记录按 `watch_id` 组织，与工具形态无关。
-- 回滚：git revert 即可，旧版 `pi_ssh_target` 工具注册代码保留在历史提交中。
+- 回滚：git revert 即可，旧版 `pi_ssh_monitor` 工具注册代码保留在历史提交中。
 
 ## Open Questions
 

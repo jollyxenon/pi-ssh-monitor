@@ -15,7 +15,7 @@ import {
 } from "../../src/audit.js";
 import {
   DEFAULT_AUDIT_CONFIG,
-  parsePiSshTargetConfig,
+  parsePiSshMonitorConfig,
 } from "../../src/audit-config.js";
 import {
   DEFAULT_ACTIVE_LIMIT,
@@ -169,7 +169,7 @@ describe("shared contracts", () => {
   it("parses fixed protocol lines and preserves chunk tails", () => {
     expect(
       parseProtocolLine(
-        '@@PI_SSH_TARGET@@{"event":"ready","watch_id":"w","description":"j","host":"h","root_pid":1,"process_count":1,"observed_at":"now","state_file":"/tmp/x"}',
+        '@@PI_SSH_MONITOR@@{"event":"ready","watch_id":"w","description":"j","host":"h","root_pid":1,"process_count":1,"observed_at":"now","state_file":"/tmp/x"}',
       )?.event,
     ).toBe("ready");
     expect(parseProtocolLine("banner")).toBeUndefined();
@@ -215,19 +215,19 @@ describe("shared contracts", () => {
   });
 
   it("parses configurable audit defaults and rejects invalid combinations", () => {
-    expect(parsePiSshTargetConfig({}).audit).toEqual(DEFAULT_AUDIT_CONFIG);
+    expect(parsePiSshMonitorConfig({}).audit).toEqual(DEFAULT_AUDIT_CONFIG);
     expect(
-      parsePiSshTargetConfig({
+      parsePiSshMonitorConfig({
         audit: { submission: "current_exchange", cacheEnabled: true },
       }).audit.cacheEnabled,
     ).toBe(false);
     expect(() =>
-      parsePiSshTargetConfig({
+      parsePiSshMonitorConfig({
         audit: { judgmentMethod: "direct_llm", submission: "ssh_tool_calls" },
       }),
     ).toThrow("不能");
     expect(() =>
-      parsePiSshTargetConfig({
+      parsePiSshMonitorConfig({
         audit: { model: { source: "independent", provider: "fake" } },
       }),
     ).toThrow("audit.model.model");
@@ -504,7 +504,7 @@ describe("shared contracts", () => {
           id: "message",
           parentId: null,
           timestamp: "now",
-          customType: "pi-ssh-target-terminal",
+          customType: "pi-ssh-monitor-terminal",
           content: "hidden",
           display: false,
         },

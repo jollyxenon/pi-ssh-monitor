@@ -402,7 +402,7 @@ export class SshWatchManager {
 
 /** 创建一次性 askpass 脚本：只输出环境变量中的密码，脚本本身不含明文。 */
 function createAskpassScript(): string {
-  const scriptPath = join(tmpdir(), `pi-ssh-target-askpass-${randomUUID()}`);
+  const scriptPath = join(tmpdir(), `pi-ssh-monitor-askpass-${randomUUID()}`);
   writeFileSync(
     scriptPath,
     "#!/bin/sh\nprintf '%s\\n' \"$SSH_TARGET_PASSWORD\"\n",

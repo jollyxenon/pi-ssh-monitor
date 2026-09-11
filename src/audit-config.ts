@@ -22,7 +22,7 @@ export interface AuditConfig {
   cacheEnabled: boolean;
 }
 
-export interface PiSshTargetConfig {
+export interface PiSshMonitorConfig {
   audit: AuditConfig;
 }
 
@@ -34,17 +34,17 @@ export const DEFAULT_AUDIT_CONFIG: AuditConfig = {
 };
 
 /** Loads the single user-level extension configuration or returns defaults. */
-export function loadPiSshTargetConfig(
-  path = join(getAgentDir(), "pi-ssh-target.json"),
-): PiSshTargetConfig {
+export function loadPiSshMonitorConfig(
+  path = join(getAgentDir(), "pi-ssh-monitor.json"),
+): PiSshMonitorConfig {
   if (!existsSync(path))
     return { audit: cloneAuditConfig(DEFAULT_AUDIT_CONFIG) };
   const raw: unknown = JSON.parse(readFileSync(path, "utf8"));
-  return parsePiSshTargetConfig(raw);
+  return parsePiSshMonitorConfig(raw);
 }
 
 /** Strictly validates and normalizes user configuration. */
-export function parsePiSshTargetConfig(raw: unknown): PiSshTargetConfig {
+export function parsePiSshMonitorConfig(raw: unknown): PiSshMonitorConfig {
   const root = requireRecord(raw, "配置根对象");
   rejectUnknown(root, ["audit"], "配置根对象");
   const auditRaw =

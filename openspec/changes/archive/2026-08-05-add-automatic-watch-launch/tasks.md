@@ -40,7 +40,7 @@
 
 ## 6. 提示词与文档
 
-- [x] 6.1 强化 `pi_ssh_target` promptSnippet/promptGuidelines，要求同一 run 登记或解释，并优先使用 start
+- [x] 6.1 强化 `pi_ssh_monitor` promptSnippet/promptGuidelines，要求同一 run 登记或解释，并优先使用 start
 - [x] 6.2 更新 README 的 start 参数、三态结果、默认日志、部分成功补救和非交互限制
 - [x] 6.3 记录 Judge 触发流程、当前模型复用、数据截断、安全边界和 usage 统计限制
 

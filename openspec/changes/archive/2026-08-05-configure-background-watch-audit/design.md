@@ -57,7 +57,7 @@ extension 实例维护单调递增的 generation。`session_start`、`session_tr
 
 ### 4. 使用一个严格规范化的审计配置
 
-从用户级专用配置文件 `~/.pi/agent/pi-ssh-target.json` 读取配置；没有文件时使用默认值。第一版不引入项目级覆盖和多层合并，避免同一后台行为存在多个来源。
+从用户级专用配置文件 `~/.pi/agent/pi-ssh-monitor.json` 读取配置；没有文件时使用默认值。第一版不引入项目级覆盖和多层合并，避免同一后台行为存在多个来源。
 
 配置形状：
 
@@ -83,7 +83,7 @@ extension 实例维护单调递增的 generation。`session_start`、`session_tr
       "source": "independent",
       "provider": "anthropic",
       "model": "claude-haiku-4-5",
-      "apiKeyEnv": "PI_SSH_TARGET_JUDGE_API_KEY"
+      "apiKeyEnv": "PI_SSH_MONITOR_JUDGE_API_KEY"
     }
   }
 }
