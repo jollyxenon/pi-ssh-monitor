@@ -126,22 +126,27 @@ const CancelParameters = Type.Object({
   }),
 });
 
-const ListParameters = Type.Object({
-  active_limit: Type.Optional(
-    Type.Integer({
-      minimum: 0,
-      maximum: MAX_LIST_LIMIT,
-      description: "Max active watches to show in list (default 3)",
-    }),
-  ),
-  terminal_limit: Type.Optional(
-    Type.Integer({
-      minimum: 0,
-      maximum: MAX_LIST_LIMIT,
-      description: "Max finished watches to show in list (default 0)",
-    }),
-  ),
-});
+// 本工具没有必填参数，TypeBox 会省略 required 字段；部分 OpenAI 兼容服务（DeepSeek 等）
+// 会把缺失的 required 当成 null 并拒绝整个工具 schema，因此显式补上空数组。
+const ListParameters = {
+  ...Type.Object({
+    active_limit: Type.Optional(
+      Type.Integer({
+        minimum: 0,
+        maximum: MAX_LIST_LIMIT,
+        description: "Max active watches to show in list (default 3)",
+      }),
+    ),
+    terminal_limit: Type.Optional(
+      Type.Integer({
+        minimum: 0,
+        maximum: MAX_LIST_LIMIT,
+        description: "Max finished watches to show in list (default 0)",
+      }),
+    ),
+  }),
+  required: [] as string[],
+};
 
 type PiToolResult = {
   content: Array<{ type: "text"; text: string }>;
