@@ -26,7 +26,6 @@ export const STDERR_TAIL_BYTES = 2000;
 export const DEFAULT_SSH_KEEPALIVE_ARGS = ["-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3"];
 export const PROTOCOL_PREFIX = "@@PI_SSH_MONITOR@@";
 export const LIFECYCLE_ENTRY_TYPE = "pi-ssh-monitor-lifecycle";
-export const AUDIT_ENTRY_TYPE = "pi-ssh-monitor-audit";
 export const MESSAGE_TYPE = "pi-ssh-monitor-terminal";
 
 /** Validates metadata shared by watch and start before SSH is created. */

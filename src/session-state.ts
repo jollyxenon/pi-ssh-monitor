@@ -14,7 +14,6 @@ export function reconstructWatchStates(entries: readonly unknown[]): Map<string,
       config: record.config,
       status: record.kind,
       updated_at: record.at,
-      ...(record.origin === undefined ? {} : { origin: record.origin }),
       ...(record.event === undefined ? {} : { event: record.event }),
       ...(record.error === undefined ? {} : { error: record.error }),
     });

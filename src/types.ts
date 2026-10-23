@@ -100,7 +100,6 @@ export interface WatchLifecycleRecord {
   watch_id: string;
   at: string;
   config: WatchConfig;
-  origin?: "audit";
   event?: WatcherFinishEvent | WatcherInterruptEvent | WatchCloseEvent;
   error?: string;
 }
@@ -110,7 +109,6 @@ export interface WatchState {
   config: WatchConfig;
   status: WatchStatus;
   updated_at: string;
-  origin?: "audit";
   event?: WatcherFinishEvent | WatcherInterruptEvent | WatchCloseEvent;
   error?: string;
 }
@@ -152,20 +150,8 @@ export interface WatchSummary {
   pid: number;
   description?: string;
   updated_at: string;
-  origin?: "audit";
   process_count?: number;
   state_file?: string | null;
-  error?: string;
-}
-
-/** Bounded background audit summary returned by list. */
-export interface AuditSummary {
-  hash: string;
-  status: "completed" | "failed" | "discarded";
-  at: string;
-  candidate_count: number;
-  evidence_count: number;
-  watch_ids: string[];
   error?: string;
 }
 
@@ -173,8 +159,6 @@ export interface AuditSummary {
 export interface ToolDetails {
   watch?: WatchState | WatchSummary;
   active?: WatchSummary[];
-  unwatched?: WatchSummary[];
   terminal?: WatchSummary[];
-  audits?: AuditSummary[];
   error?: string;
 }
