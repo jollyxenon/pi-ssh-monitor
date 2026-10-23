@@ -32,6 +32,16 @@ class IncrementingClock:
         return current
 
 
+class ClosedChannelOutput(io.StringIO):
+    """Fails only the heartbeat write to simulate a closed SSH channel."""
+
+    def write(self, value: str) -> int:
+        """Raises BrokenPipeError for the standalone heartbeat line."""
+        if value == "\n":
+            raise BrokenPipeError("channel closed")
+        return super().write(value)
+
+
 class WatcherTestCase(unittest.TestCase):
     """Exercises /proc discovery, identity, persistence, and JSONL protocol."""
 
@@ -141,14 +151,51 @@ class WatcherTestCase(unittest.TestCase):
         self.assertEqual(instance.processes[101].start_ticks, 11)
         self.assertIsNotNone(instance.processes[101].ended_at)
 
-    def test_zombie_and_scan_race_do_not_interrupt(self) -> None:
-        """Treats zombie as alive and child disappearing between reads as normal race."""
-        self.write_process(100, start_ticks=10, state="Z", threads={100: [101]})
+    def test_closed_channel_ends_watcher_after_ready(self) -> None:
+        """Exits silently when the heartbeat write fails because the SSH channel is gone."""
+        self.write_process(100, start_ticks=10)
+        output = ClosedChannelOutput()
+        instance = self.make_watcher(self.config(), output)
+        self.assertEqual(instance.run(), 0)
+        self.assertEqual([event["event"] for event in self.protocol_events(output)], ["ready"])
+
+    def test_zombie_root_finishes_at_initialize(self) -> None:
+        """Ends immediately when the root is already a zombie at registration."""
+        self.write_process(100, start_ticks=10, state="Z")
+        output = io.StringIO()
+        instance = self.make_watcher(self.config(), output)
+        self.assertEqual(instance.run(), 0)
+        self.assertEqual([event["event"] for event in self.protocol_events(output)], ["ready", "finish"])
+        self.assertEqual(json.loads(instance.state_path.read_text(encoding="utf-8"))["terminal"], "finish")
+
+    def test_zombie_and_dead_states_end_during_scan(self) -> None:
+        """Ends a tracked root once its state becomes Z or X and ignores a vanished child race."""
+        self.write_process(100, start_ticks=10, threads={100: [101]})
         instance = self.make_watcher(self.config())
         instance.initialize()
         self.assertFalse(instance.scan())
-        self.assertIsNone(instance.processes[100].ended_at)
         self.assertNotIn(101, instance.processes)
+
+        self.write_process(100, start_ticks=10, state="Z")
+        self.assertTrue(instance.scan())
+        self.assertIsNotNone(instance.processes[100].ended_at)
+
+        dead = self.make_watcher(self.config(root_pid=200))
+        self.write_process(200, start_ticks=20)
+        dead.initialize()
+        self.write_process(200, start_ticks=20, state="X")
+        self.assertTrue(dead.scan())
+        self.assertIsNotNone(dead.processes[200].ended_at)
+
+    def test_zombie_descendant_ends_without_keeping_tree_alive(self) -> None:
+        """Records a discovered zombie child as ended so it cannot hold the watch open."""
+        self.write_process(100, start_ticks=10, threads={100: [101]})
+        self.write_process(101, start_ticks=11, state="Z")
+        instance = self.make_watcher(self.config())
+        instance.initialize()
+        instance.scan()
+        self.assertIsNotNone(instance.processes[101].ended_at)
+        self.assertIsNone(instance.processes[100].ended_at)
 
     def test_proc_parse_permission_and_state_write_errors_become_interrupts(self) -> None:
         """Classifies parse, permission, and durable-state failures as interruptions."""

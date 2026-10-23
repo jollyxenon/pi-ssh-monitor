@@ -15,6 +15,9 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Set, TextIO
 
 PROTOCOL_PREFIX = "@@PI_SSH_MONITOR@@"
 STATE_VERSION = 1
+# /proc/<pid>/stat 的状态字符：Z 为僵尸（已终止、等待父进程回收），X 为已死亡。
+# 两者都表示进程不可能再运行，必须视为已结束；僵尸进程无法被 kill，只能等父进程 wait()。
+ENDED_STATES = frozenset({"Z", "X"})
 
 
 class WatcherInterrupt(Exception):
@@ -209,7 +212,7 @@ class Watcher:
             return
 
         root_stat = self.proc.read_process_stat(self.config["root_pid"])
-        if root_stat is None:
+        if root_stat is None or root_stat.state in ENDED_STATES:
             self.terminal = "finish"
         else:
             self._remember(root_stat)
@@ -223,7 +226,11 @@ class Watcher:
             if record.ended_at is not None:
                 continue
             current = self.proc.read_process_stat(record.pid)
-            if current is None or current.start_ticks != record.start_ticks:
+            if (
+                current is None
+                or current.start_ticks != record.start_ticks
+                or current.state in ENDED_STATES
+            ):
                 record.ended_at = utc_now(self.clock)
             else:
                 active.append(record.pid)
@@ -243,8 +250,11 @@ class Watcher:
                     child = self.proc.read_process_stat(child_pid)
                     if child is None:
                         continue
-                    self._remember(child)
-                    queue.append(child_pid)
+                    record = self._remember(child)
+                    if child.state in ENDED_STATES:
+                        record.ended_at = utc_now(self.clock)
+                    else:
+                        queue.append(child_pid)
                 elif self.processes[child_pid].ended_at is None:
                     queue.append(child_pid)
 
@@ -266,6 +276,8 @@ class Watcher:
                 return 0
             scans = 0
             while max_scans is None or scans < max_scans:
+                if not self._heartbeat():
+                    return 0
                 if self.scan():
                     self.emit("finish")
                     return 0
@@ -295,13 +307,29 @@ class Watcher:
         self.output.write(f"{PROTOCOL_PREFIX}{json.dumps(payload, separators=(',', ':'), sort_keys=True)}\n")
         self.output.flush()
 
-    def _remember(self, stat: ProcStat) -> None:
+    def _heartbeat(self) -> bool:
+        """Writes an ignored heartbeat line so a closed SSH channel ends the watcher.
+
+        Python ignores SIGPIPE, so writing to a pipe whose read end is gone raises
+        BrokenPipeError. This makes cancel, reload, or an unexpected SSH drop stop the
+        remote watcher instead of leaving it scanning forever.
+        """
+        try:
+            self.output.write("\n")
+            self.output.flush()
+        except (OSError, ValueError):
+            return False
+        return True
+
+    def _remember(self, stat: ProcStat) -> ProcessRecord:
         """Adds a newly discovered process with stable identity and wall-clock start."""
-        self.processes[stat.pid] = ProcessRecord(
+        record = ProcessRecord(
             pid=stat.pid,
             start_ticks=stat.start_ticks,
             started_at=wall_started_at(self.btime, stat.start_ticks, self.proc.clock_ticks),
         )
+        self.processes[stat.pid] = record
+        return record
 
     def _load_state(self) -> None:
         """Restores persisted identities and rejects missing, corrupt, or wrong-boot state."""

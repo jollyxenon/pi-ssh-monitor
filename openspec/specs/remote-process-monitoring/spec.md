@@ -1,7 +1,9 @@
 ## Purpose
 
 定义 pi-ssh-monitor 的远程 Linux 进程树监控、生命周期、持久化和 Agent 通知行为。
+
 ## Requirements
+
 ### Requirement: Pi package and Agent tool
 系统 SHALL 以可安装 Pi package `pi-ssh-monitor` 提供三个 Agent 工具：`pi_ssh_watch`（监控已运行的远程进程树）、`pi_ssh_cancel`（取消监控）、`pi_ssh_list`（查看监控列表）。系统 SHALL NOT 提供 `pi_ssh_monitor` 单一工具或 `start` action。系统 SHALL NOT 提供用户 slash command 作为主要操作入口。
 
@@ -9,6 +11,7 @@
 - **WHEN** `pi-ssh-monitor` package 被 Pi 加载
 - **THEN** Agent 可调用名为 `pi_ssh_watch`、`pi_ssh_cancel`、`pi_ssh_list` 的三个工具
 - **THEN** `pi_ssh_watch` 工具 schema 以必填字段要求 `host` 和 `pid`
+
 ### Requirement: Watch input contract
 `pi_ssh_watch` 工具 SHALL 要求必填字段 `host` 和 `pid`，不提供 `action` 字段。系统 SHALL 接受可选 `description`、`ssh_args[]`、`password`、`interval_seconds`、`startup_timeout_seconds`、`probe_interval_seconds`、`result_paths`、`log_paths` 和 `note`。默认扫描间隔 SHALL 为 5 秒，默认启动超时 SHALL 为 10 秒，默认可达性探测间隔 SHALL 为 60 秒（`0` 关闭）。
 
@@ -27,6 +30,7 @@
 - **WHEN** Agent 调用 `pi_ssh_watch` 并提供 `host`、活动 PID 和 `password`
 - **THEN** 系统使用该密码通过 SSH 认证并启动远程 Python Watcher
 - **THEN** 工具在远程 Watcher ready 后返回
+
 ### Requirement: Metadata limits
 系统 SHALL 限制注入上下文的 watch 元数据：`description` 和 `note` 最多 2000 字符，`password` 最多 512 字符且不允许为空，`result_paths` 和 `log_paths` 各最多 20 项，每项最多 1000 字符。SSH stderr SHALL 仅保留尾部最多 2000 字节。
 
@@ -121,30 +125,20 @@ Watcher SHALL 使用 `boot_id + PID + start_ticks` 标识进程。只有当前 P
 - **THEN** Watcher 不使用旧 PID 状态继续监控
 
 ### Requirement: Dynamic process tree discovery
+
 Watcher SHALL 每轮扫描所有尚未结束的已知进程，并通过 `/proc/<pid>/task/*/children` 递归发现新后代。Watcher SHALL 继续跟踪所有已发现后代，即使根进程已经消失或后代已经被其他父进程接管。
 
 #### Scenario: Child outlives root process
-- **WHEN** Watcher 已发现一个子进程，随后根 PID 消失而子进程仍保持相同身份
+
+- **WHEN** Watcher 已发现一个子进程，随后根 PID 消失或变为 `Z`/`X`，而子进程仍保持相同身份
 - **THEN** Watcher 继续监控该子进程
-- **THEN** Watcher 不发送 `finish`，直到所有已发现进程身份都消失
+- **THEN** Watcher 不发送 `finish`，直到所有已发现进程都已结束
 
 #### Scenario: New descendant appears
+
 - **WHEN** 一个尚未结束的已知进程在后续扫描中出现新的 child PID
-- **THEN** Watcher读取该 PID 的身份和启动时间
-- **THEN** Watcher把该进程加入当前 watch 状态
-
-### Requirement: Strict disappearance semantics
-Watcher SHALL 仅在 PID 不存在或 PID 的启动时间变化时将原进程标记为结束。Watcher SHALL NOT 因进程状态为 `Z` 或 `X` 而提前标记结束。
-
-#### Scenario: Zombie process remains present
-- **WHEN** 已跟踪 PID 的状态为 `Z`，但 PID 和 `start_ticks` 仍匹配
-- **THEN** Watcher继续把该进程视为存在
-- **THEN** Watcher不发送 `finish`
-
-#### Scenario: Proc entry disappears during a scan
-- **WHEN** 读取过程中出现 `ENOENT` 或 `ESRCH`
-- **THEN** Watcher把对应进程记录为已结束
-- **THEN** 该竞态不产生 `interrupt`
+- **THEN** Watcher 读取该 PID 的身份和启动时间
+- **THEN** Watcher 把该进程加入当前 watch 状态
 
 ### Requirement: Watcher error classification
 Watcher SHALL 将 `EACCES`、`EPERM`、无法解析 `/proc`、无法写入状态文件和未分类内部错误视为监控中断，并 SHALL 输出结构化 `interrupt` 终态。
@@ -169,12 +163,14 @@ Watcher SHALL 在每轮扫描后把 watch 配置、boot ID、全部已发现 PID
 - **THEN** 系统不使用其他目录、不从根 PID 重建，也不提供 fallback
 
 ### Requirement: Initial missing PID behavior
-首次创建 watch 时，如果根 PID 已不存在，Watcher SHALL 立即产生 `finish`，而不是把登记操作作为错误。
+
+首次创建 watch 时，如果根 PID 已不存在或状态为 `Z`/`X`，Watcher SHALL 立即产生 `finish`，而不是把登记操作作为错误。
 
 #### Scenario: PID ended before registration
-- **WHEN** SSH 和远程环境有效，但 `watch` 开始时根 PID 已不存在
-- **THEN** Watcher写入终态状态文件
-- **THEN** Watcher输出 `finish`
+
+- **WHEN** SSH 和远程环境有效，但 `watch` 开始时根 PID 已不存在或已是僵尸/已死亡状态
+- **THEN** Watcher 写入终态状态文件
+- **THEN** Watcher 输出 `finish`
 - **THEN** 插件立即 steer Agent
 
 ### Requirement: Watcher protocol and terminal states
@@ -229,6 +225,7 @@ Watcher stdout SHALL 使用带固定前缀的 JSONL 协议。远程 Watcher SHAL
 - **WHEN** Agent 对不存在或已终态的 `watch_id` 调用 `pi_ssh_cancel`
 - **THEN** 系统返回不改变现有状态的错误
 - **THEN** 系统不创建新的 watch
+
 ### Requirement: List behavior
 `pi_ssh_list` 工具 SHALL 只读取当前 Pi session 的活跃 watch 记录，不连接远程主机。可选数量 SHALL 支持最多 20 个活跃 watch 和最多 5 个终态 watch，并 SHALL 提醒 Agent 可以传更多数量。
 
@@ -242,6 +239,7 @@ Watcher stdout SHALL 使用带固定前缀的 JSONL 协议。远程 Watcher SHAL
 - **WHEN** Agent 传 `active_limit` 和 `terminal_limit` 调用 `pi_ssh_list`
 - **THEN** 系统按请求数量返回结果
 - **THEN** 系统保持 Pi 系统提示语不变
+
 ### Requirement: Session persistence and restoration
 插件 SHALL 通过 Pi custom entries 持久化 started、finish、interrupt、close 和 cancelled 生命周期。session reload、Pi 重启后恢复同一 session 或重新进入原 session 时，系统 SHALL 重启最后状态仍为 started 的 Watcher。主动 session shutdown SHALL NOT 生成 `close`。
 
@@ -276,3 +274,37 @@ SSH 或 Watcher 意外退出后，系统 SHALL 立即产生相应终态，且 SH
 - **THEN** `watch` 启动失败或产生 `interrupt`
 - **THEN** 系统不尝试其他监控实现
 
+### Requirement: Process end detection
+
+Watcher SHALL 在 PID 不存在、PID 的启动时间变化、或进程状态为 `Z` 或 `X` 时将原进程标记为结束。僵尸进程（`Z`）已经终止且无法再运行，其 `/proc/<pid>` 条目可能因父进程不回收而长期存在，Watcher SHALL NOT 因此把它视为仍在运行。
+
+#### Scenario: Zombie process remains present
+
+- **WHEN** 已跟踪 PID 的状态为 `Z`，但 PID 和 `start_ticks` 仍匹配
+- **THEN** Watcher 把该进程记录为已结束
+- **THEN** 当所有已发现进程都已结束时，Watcher 发送 `finish`
+
+#### Scenario: Dead process state
+
+- **WHEN** 已跟踪 PID 的状态为 `X`
+- **THEN** Watcher 把该进程记录为已结束
+
+#### Scenario: Proc entry disappears during a scan
+
+- **WHEN** 读取过程中出现 `ENOENT` 或 `ESRCH`
+- **THEN** Watcher 把对应进程记录为已结束
+- **THEN** 该竞态不产生 `interrupt`
+
+### Requirement: Remote watcher shutdown on channel loss
+
+远程 Watcher SHALL 在每轮扫描前写入一条不匹配协议前缀的心跳并刷新 stdout。当 SSH 通道关闭导致写入失败时，Watcher SHALL 直接退出，SHALL NOT 继续扫描或留下无人接收的孤儿进程。
+
+#### Scenario: Local cancel or reload closes the SSH channel
+
+- **WHEN** 插件取消 watch、关闭全部 watch 或 Pi 退出，从而结束本地 SSH 子进程
+- **THEN** 远程 Watcher 在下一次心跳写入失败后退出
+
+#### Scenario: Unexpected SSH drop
+
+- **WHEN** SSH 连接因网络断开而在本地未被及时感知
+- **THEN** 远程 Watcher 在下一次心跳写入失败后退出，不长期占用远程资源
